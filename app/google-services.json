@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "214725397434",
+    "project_id": "bomapay-196a5",
+    "storage_bucket": "bomapay-196a5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:214725397434:android:03905a49e8585be72b6b83",
+        "android_client_info": {
+          "package_name": "com.example.bomapay"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyARce8YK372sXhoEifBjKji_-ZTumEZ1rk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
