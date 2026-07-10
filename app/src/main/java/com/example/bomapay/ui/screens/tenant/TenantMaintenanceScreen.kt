@@ -3,6 +3,7 @@ package com.example.bomapay.ui.screens.tenant
 import android.Manifest
 import android.content.Context
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -34,48 +35,36 @@ fun TenantMaintenanceScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val title by viewModel.title.collectAsStateWithLifecycle()
+    val description by viewModel.description.collectAsStateWithLifecycle()
+    val selectedImageUri by viewModel.selectedImageUri.collectAsStateWithLifecycle()
+    
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var showRationale by remember { mutableStateOf(false) }
 
     val isEditMode = uiState.currentEditRequest != null
-
-    // Form handling
-    LaunchedEffect(uiState.currentEditRequest) {
-        uiState.currentEditRequest?.let { req ->
-            title = req.title
-            description = req.description
-            selectedImageUri = null
-        }
-    }
-
-    LaunchedEffect(isEditMode) {
-        if (!isEditMode) {
-            title = ""
-            description = ""
-            selectedImageUri = null
-        }
-    }
 
     // Launchers
     val takePictureLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { success ->
-        if (!success) selectedImageUri = null
+        if (!success) viewModel.selectedImageUri.value = null
     }
 
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
-            val file = createImageFile(context)
-            val uri = getFileProviderUri(context, file)
-            selectedImageUri = uri
-            takePictureLauncher.launch(uri)
+            try {
+                val file = createImageFile(context)
+                val uri = getFileProviderUri(context, file)
+                viewModel.selectedImageUri.value = uri
+                takePictureLauncher.launch(uri)
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error starting camera: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
         } else {
             showRationale = true
         }
@@ -83,14 +72,16 @@ fun TenantMaintenanceScreen(
 
     val galleryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
-    ) { uri -> selectedImageUri = uri }
+    ) { uri -> viewModel.selectedImageUri.value = uri }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(if (isEditMode) "Update Request" else "New Request") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = {
+                        if (isEditMode) viewModel.cancelEdit() else onNavigateBack()
+                    }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -112,7 +103,7 @@ fun TenantMaintenanceScreen(
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = title,
-                    onValueChange = { title = it },
+                    onValueChange = { viewModel.title.value = it },
                     label = { Text("Title") },
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -121,7 +112,7 @@ fun TenantMaintenanceScreen(
             item {
                 OutlinedTextField(
                     value = description,
-                    onValueChange = { description = it },
+                    onValueChange = { viewModel.description.value = it },
                     label = { Text("Description") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3
@@ -169,7 +160,25 @@ fun TenantMaintenanceScreen(
                         Text("Gallery")
                     }
                     Button(
-                        onClick = { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) },
+                        onClick = {
+                            val permission = Manifest.permission.CAMERA
+                            val isGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+                                context, permission
+                            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+                            if (isGranted) {
+                                try {
+                                    val file = createImageFile(context)
+                                    val uri = getFileProviderUri(context, file)
+                                    viewModel.selectedImageUri.value = uri
+                                    takePictureLauncher.launch(uri)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                cameraPermissionLauncher.launch(permission)
+                            }
+                        },
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("Camera")
@@ -181,19 +190,10 @@ fun TenantMaintenanceScreen(
                 Button(
                     onClick = {
                         scope.launch {
-                            val result = viewModel.uploadMaintenanceRequest(
+                            viewModel.uploadMaintenanceRequest(
                                 context = context,
-                                title = title,
-                                description = description,
-                                selectedImageUri = selectedImageUri,
                                 existingRequest = uiState.currentEditRequest
                             )
-                            if (result.isSuccess) {
-                                viewModel.clearFormState()
-                                title = ""
-                                description = ""
-                                selectedImageUri = null
-                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),

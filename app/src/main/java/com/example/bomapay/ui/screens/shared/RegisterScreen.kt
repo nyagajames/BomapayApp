@@ -27,7 +27,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun RegisterScreen(
-    onRegisterSuccess: () -> Unit,
+    onRegisterSuccess: (String) -> Unit,
     onNavigateToLogin: () -> Unit
 ) {
     // New Input States for capturing profile particulars upfront
@@ -185,7 +185,7 @@ fun RegisterScreen(
                         )
                         isLoading = false
                         if (result.isSuccess) {
-                            onRegisterSuccess()
+                            onRegisterSuccess(if (attemptsLandlordAccess) "landlord" else "tenant")
                         } else {
                             Toast.makeText(context, "Registration Failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
                         }

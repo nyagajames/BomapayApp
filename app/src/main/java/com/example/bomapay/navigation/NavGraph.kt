@@ -12,6 +12,8 @@ import com.example.bomapay.ui.screens.tenant.*
 import com.example.bomapay.ui.screens.shared.*
 import com.example.bomapay.ui.viewmodel.TenantViewModel
 import com.example.bomapay.ui.viewmodel.MaintenanceViewModel
+import com.example.bomapay.ui.viewmodel.PaymentViewModel
+import com.example.bomapay.data.repository.MpesaRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -34,8 +36,12 @@ fun NavGraph(navController: NavHostController) {
                     } else {
                         firestore.collection("users").document(currentUser.uid).get()
                             .addOnSuccessListener { doc ->
-                                val dest = if (doc.getString("role") == "landlord") Graph.LANDLORD else Graph.TENANT
+                                val dest = if (doc.exists() && doc.getString("role") == "landlord") Graph.LANDLORD else Graph.TENANT
                                 navController.navigate(dest) { popUpTo(Screen.Splash.route) { inclusive = true } }
+                            }
+                            .addOnFailureListener {
+                                // Fallback to Login or Tenant if Firestore fetch fails
+                                navController.navigate(Screen.Login.route) { popUpTo(Screen.Splash.route) { inclusive = true } }
                             }
                     }
                 })
@@ -54,7 +60,11 @@ fun NavGraph(navController: NavHostController) {
             composable(route = Screen.Register.route) {
                 RegisterScreen(
                     onNavigateToLogin = { navController.popBackStack() },
-                    onRegisterSuccess = { navController.popBackStack() }
+                    onRegisterSuccess = { role ->
+                        navController.navigate(if (role == "landlord") Graph.LANDLORD else Graph.TENANT) {
+                            popUpTo(Graph.SHARED) { inclusive = true }
+                        }
+                    }
                 )
             }
             composable(route = Screen.ForgotPassword.route) {
@@ -86,7 +96,26 @@ fun NavGraph(navController: NavHostController) {
             }
 
             composable(route = Screen.TenantPay.route) {
-                TenantPayScreen(onNavigateBack = { navController.popBackStack() })
+                // Initialize MpesaRepository with Sandbox Credentials
+                val mpesaRepository = remember {
+                    MpesaRepository(
+                        consumerKey = "wYZ9LgFmignkR2hfnXEGo9cC0TBuqQ0jAPveI2PSTxVYwZgg",
+                        consumerSecret = "4Hc8eB0UtdALrIpwwGnRa7MkjDPCr8eUFhOoBQVtgk0ZE6PtOEbiURhk1Yelx2GG",
+                        passKey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919", // Standard Sandbox Passkey
+                        shortCode = "174379", // Standard Sandbox Shortcode
+                        callbackUrl = "https://webhook.site/9a07dc83-5f0a-4b1e-a9c2-c376b8d0df2a" // Replace with your actual callback URL or a dummy for sandbox
+                    )
+                }
+                val paymentViewModel: PaymentViewModel = viewModel(factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+                    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                        return PaymentViewModel(mpesaRepository) as T
+                    }
+                })
+
+                TenantPayScreen(
+                    viewModel = paymentViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
 
             composable(route = Screen.TenantMaintenance.route) {

@@ -36,7 +36,7 @@ fun LoginScreen(
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val authRepository = AuthRepository()
+    val authRepository = remember { AuthRepository() }
 
     val isEmailError = email.isNotEmpty() && !Patterns.EMAIL_ADDRESS.matcher(email).matches()
 
@@ -105,8 +105,7 @@ fun LoginScreen(
                         if (result.isSuccess) {
                             val uid = authRepository.getCurrentUid() ?: ""
                             val role = authRepository.getUserRole(uid) ?: "tenant"
-
-                            // Let the NavGraph handle the destination calculation!
+                            isLoading = false
                             onLoginSuccess(role)
                         } else {
                             isLoading = false

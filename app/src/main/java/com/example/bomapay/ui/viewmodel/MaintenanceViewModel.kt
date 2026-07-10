@@ -46,6 +46,11 @@ class MaintenanceViewModel(
     private val _uiState = MutableStateFlow(MaintenanceUiState())
     val uiState: StateFlow<MaintenanceUiState> = _uiState.asStateFlow()
 
+    // Form State
+    val title = MutableStateFlow("")
+    val description = MutableStateFlow("")
+    val selectedImageUri = MutableStateFlow<Uri?>(null)
+
     private var houseNumber: String = "Unassigned"
     private var listenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
 
@@ -96,32 +101,40 @@ class MaintenanceViewModel(
 
     fun startEdit(request: MaintenanceRequest) {
         _uiState.value = _uiState.value.copy(currentEditRequest = request)
+        title.value = request.title
+        description.value = request.description
+        selectedImageUri.value = null
     }
 
     fun cancelEdit() {
         _uiState.value = _uiState.value.copy(currentEditRequest = null)
+        resetForm()
+    }
+
+    private fun resetForm() {
+        title.value = ""
+        description.value = ""
+        selectedImageUri.value = null
     }
 
     suspend fun uploadMaintenanceRequest(
         context: android.content.Context,
-        title: String,
-        description: String,
-        selectedImageUri: Uri?,
         existingRequest: MaintenanceRequest? = null // null for new
     ): Result<MaintenanceRequest> = runCatching {
         _uiState.value = _uiState.value.copy(isLoading = true, error = null)
         
         var imageUrl = existingRequest?.imageUrl
+        val currentUri = selectedImageUri.value
 
         // Upload new image only if selected
-        if (selectedImageUri != null) {
-            imageUrl = uploadImageToCloudinary(context, selectedImageUri)
+        if (currentUri != null) {
+            imageUrl = uploadImageToCloudinary(context, currentUri)
         }
 
         val request = MaintenanceRequest(
             id = existingRequest?.id ?: UUID.randomUUID().toString(),
-            title = title.trim(),
-            description = description.trim(),
+            title = title.value.trim(),
+            description = description.value.trim(),
             imageUrl = imageUrl,
             status = existingRequest?.status ?: "Pending",
             timestamp = System.currentTimeMillis(),
@@ -132,8 +145,8 @@ class MaintenanceViewModel(
         val docRef = db.collection("maintenance_requests").document(request.id)
         docRef.set(request).await()
 
-        // Clear edit mode on success
-        if (existingRequest != null) cancelEdit()
+        // Clear edit mode and form on success
+        cancelEdit()
 
         _uiState.value = _uiState.value.copy(isLoading = false)
         request

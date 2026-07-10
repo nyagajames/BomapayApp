@@ -48,12 +48,13 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.0")
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.8.0")
 
     // Firebase
-    implementation(platform("com.google.firebase:firebase-bom:33.5.1")) // Slightly older stable version
+    implementation(platform("com.google.firebase:firebase-bom:34.15.0")) // Slightly older stable version
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-analytics")
@@ -69,6 +70,12 @@ dependencies {
 
     // Material Icons Extended
     implementation("androidx.compose.material:material-icons-extended")
+
+    // Retrofit & OkHttp
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.gson)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
